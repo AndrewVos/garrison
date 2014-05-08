@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/AndrewVos/colour"
 )
@@ -22,8 +24,9 @@ type ServerConfiguration struct {
 }
 
 type Task struct {
-	Name   string `json:"name"`
-	Script string `json:"script"`
+	Name     string `json:"name"`
+	Script   string `json:"script"`
+	Parallel bool   `json:"parallel"`
 }
 
 func main() {
@@ -62,10 +65,23 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 	for _, serverConfiguration := range serverConfigurations {
 		for _, task := range serverConfiguration.Tasks {
 			if fmt.Sprintf("%v:%v", serverConfiguration.Name, task.Name) == command {
+				var wg sync.WaitGroup
 				for _, server := range serverConfiguration.Servers {
 					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
-					executeTask(server, task)
+					if task.Parallel {
+						wg.Add(1)
+						out := &DelayedStdWriter{Out: os.Stdout}
+						go func(server Server, task Task, out *DelayedStdWriter) {
+							executeTask(server, task, out)
+							wg.Done()
+							out.Flush()
+						}(server, task, out)
+
+					} else {
+						executeTask(server, task, os.Stdout)
+					}
 				}
+				wg.Wait()
 				return
 			}
 		}
@@ -73,7 +89,7 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 	FatalRedf("I couldn't find the command %q\n", command)
 }
 
-func executeTask(server Server, task Task) {
+func executeTask(server Server, task Task, out io.Writer) {
 	script, err := ioutil.ReadFile(task.Script)
 	if err != nil {
 		FatalRedf("I couldn't read from your script %q:\n%v\n", task.Script, err)
@@ -87,8 +103,8 @@ func executeTask(server Server, task Task) {
 	stdin.Write(script)
 	stdin.Close()
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = out
+	cmd.Stderr = out
 
 	err = cmd.Start()
 	if err != nil {
@@ -108,4 +124,20 @@ func FatalRedf(format string, v ...interface{}) {
 
 func Bluef(format string, v ...interface{}) {
 	fmt.Printf(colour.Blue(format), v...)
+}
+
+type DelayedStdWriter struct {
+	Out    io.Writer
+	buffer []byte
+}
+
+func (s *DelayedStdWriter) Write(p []byte) (n int, err error) {
+	for _, b := range p {
+		s.buffer = append(s.buffer, b)
+	}
+	return len(p), nil
+}
+
+func (s *DelayedStdWriter) Flush() {
+	s.Out.Write(s.buffer)
 }
