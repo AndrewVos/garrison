@@ -27,15 +27,16 @@ type Task struct {
 }
 
 func main() {
-	b, err := ioutil.ReadFile("deployment-configuration.json")
+	fileName := "garrison.json"
+	b, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		FatalRedf("I couldn't read your deployment-configuration.json. Are you sure it exists?\n%v\n", err)
+		FatalRedf("I couldn't read your %v. Are you sure it exists?\n%v\n", fileName, err)
 	}
 
 	var serverConfigurations []ServerConfiguration
 	err = json.Unmarshal(b, &serverConfigurations)
 	if err != nil {
-		FatalRedf("I couldn't decode your deployment-configuration.json\n%v\n", err)
+		FatalRedf("I couldn't decode your %v\n%v\n", fileName, err)
 	}
 
 	if len(os.Args) > 1 {
@@ -47,7 +48,7 @@ func main() {
 }
 
 func printCommands(serverConfigurations []ServerConfiguration) {
-	fmt.Printf("Usage: deploydeploydeploy <command>\n\n")
+	fmt.Printf("Usage: %v <command>\n\n", os.Args[0])
 	fmt.Printf("Commands:\n")
 	for _, serverConfiguration := range serverConfigurations {
 		fmt.Printf("%v:\n", serverConfiguration.Name)
