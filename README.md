@@ -4,7 +4,7 @@ Garrison is a simple tool I use for deploying docker containers to large amounts
 of servers, mostly on EC2.
 
 The idea behind it is that most people just need a few bash scripts to be run on
-a lot of servers, and don't want to mess around with larger scale Cloud Auto Scaling solutions.
+a lot of servers, and don't want to mess around with larger scale "Cloud" solutions.
 
 # Installation
 
