@@ -24,19 +24,21 @@ to launch the container on each server.
 
 This is what our ```garrison.json``` file looks like:
 
-	[
-		{
-			"name": "portiere",
-			"servers": [
-				{ "address": "11.11.11.11", "user": "ubuntu" },
-				{ "address": "22.22.22.22", "user": "ubuntu" }
-			],
-			"tasks": [
-				{ "name": "build", "script": "deployment-scripts/build", "parallel": true },
-				{ "name": "launch", "script": "deployment-scripts/launch" }
-			]
-		}
-	]
+```json
+[
+	{
+		"name": "portiere",
+		"servers": [
+			{ "address": "11.11.11.11", "user": "ubuntu" },
+			{ "address": "22.22.22.22", "user": "ubuntu" }
+		],
+		"tasks": [
+			{ "name": "build", "script": "deployment-scripts/build", "parallel": true },
+			{ "name": "launch", "script": "deployment-scripts/launch" }
+		]
+	}
+]
+```
 
 Notice that ```parallel``` is specified for the ```build``` task. This is because we want this task to run
 as fast as possible. Garrison will execute the build script on all servers at the same time.
@@ -45,13 +47,17 @@ don't execute this in parallel.
 
 And we have a bash script for ```build```:
 
-	#!/bin/bash -e
-	docker pull andrewvos/docker-elasticsearch
+```bash
+#!/bin/bash -e
+docker pull andrewvos/docker-elasticsearch
+```
 
 And one for ```launch```:
 
-	#!/bin/bash
-	export CONTAINER=elasticsearch
-	docker stop $CONTAINER || :
-	docker rm $CONTAINER || :
-	docker run -d --name $CONTAINER -p 9200:9200 -p 9300:9300 -v /some/path:/var/lib/elasticsearch andrewvos/docker-elasticsearch
+```bash
+#!/bin/bash
+export CONTAINER=elasticsearch
+docker stop $CONTAINER || :
+docker rm $CONTAINER || :
+docker run -d --name $CONTAINER -p 9200:9200 -p 9300:9300 -v /some/path:/var/lib/elasticsearch andrewvos/docker-elasticsearch
+```
