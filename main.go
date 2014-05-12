@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -72,13 +73,19 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 						wg.Add(1)
 						out := &DelayedStdWriter{Out: os.Stdout}
 						go func(server Server, task Task, out *DelayedStdWriter) {
-							executeTask(server, task, out)
+							err := executeTask(server, task, out)
 							wg.Done()
 							out.Flush()
+							if err != nil {
+								Redf("%v\n", err)
+							}
 						}(server, task, out)
 
 					} else {
-						executeTask(server, task, os.Stdout)
+						err := executeTask(server, task, os.Stdout)
+						if err != nil {
+							FatalRedf("%v\n", err)
+						}
 					}
 				}
 				wg.Wait()
@@ -89,16 +96,16 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 	FatalRedf("I couldn't find the command %q\n", command)
 }
 
-func executeTask(server Server, task Task, out io.Writer) {
+func executeTask(server Server, task Task, out io.Writer) error {
 	script, err := ioutil.ReadFile(task.Script)
 	if err != nil {
-		FatalRedf("I couldn't read from your script %q:\n%v\n", task.Script, err)
+		return errors.New(fmt.Sprintf("I couldn't read from your script %q:\n%v", task.Script, err))
 	}
 
 	cmd := exec.Command("ssh", "-T", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v", server.User, server.Address))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		FatalRedf("I couldn't connect to stdin of ssh:\n%v\n", err)
+		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
 	}
 	stdin.Write(script)
 	stdin.Close()
@@ -108,13 +115,18 @@ func executeTask(server Server, task Task, out io.Writer) {
 
 	err = cmd.Start()
 	if err != nil {
-		FatalRedf("I couldn't launch ssh:\n%v\n", err)
+		return errors.New(fmt.Sprintf("I couldn't launch ssh:\n%v", err))
 	}
 
 	err = cmd.Wait()
 	if err != nil {
-		FatalRedf("I had some problems running %q on %q:\n%v\n", task.Script, server.Address, err)
+		return errors.New(fmt.Sprintf("I had some problems running %q on %q:\n%v", task.Script, server.Address, err))
 	}
+	return nil
+}
+
+func Redf(format string, v ...interface{}) {
+	fmt.Printf(colour.Red(format), v...)
 }
 
 func FatalRedf(format string, v ...interface{}) {
