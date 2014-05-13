@@ -16,6 +16,20 @@ Typically, you would create a ```garrison.json``` file in your project root.
 This describes what your infrastructure looks like.
 You have configuration for each server, and tasks that can be run on each server.
 
+# Tasks
+Tasks can only be scripts at the moment. They can be run in parallel, and can have
+environment variables.
+
+	{
+		"name": "your-task-name",
+		"script": "/some-local-file",
+		"parallel": false,
+		"environment": {
+			"ENV_VAR1": "value1",
+			"ENV_VAR2": "value2"
+		}
+	}
+
 # Example with Elasticsearch
 
 Lets say we want to deploy ```andrewvos/docker-elasticsearch```. We need a task

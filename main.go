@@ -26,9 +26,10 @@ type ServerConfiguration struct {
 }
 
 type Task struct {
-	Name     string `json:"name"`
-	Script   string `json:"script"`
-	Parallel bool   `json:"parallel"`
+	Name        string            `json:"name"`
+	Script      string            `json:"script"`
+	Parallel    bool              `json:"parallel"`
+	Environment map[string]string `json:"environment"`
 }
 
 func main() {
@@ -64,7 +65,9 @@ func printCommands(serverConfigurations []ServerConfiguration) {
 
 		for _, task := range serverConfiguration.Tasks {
 			fmt.Printf("  %v:%v\n", serverConfiguration.Name, task.Name)
-			fmt.Printf("  %v:%v:%v\n", serverConfiguration.Name, "<server_address>", task.Name)
+			if len(serverConfiguration.Servers) > 1 {
+				fmt.Printf("  %v:%v:%v\n", serverConfiguration.Name, "<server_address>", task.Name)
+			}
 		}
 
 	}
@@ -125,6 +128,9 @@ func executeTask(server Server, task Task, out io.Writer) error {
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
+	}
+	for name, value := range task.Environment {
+		fmt.Fprintf(stdin, "export %v=\"%v\"\n", name, value)
 	}
 	stdin.Write(script)
 	stdin.Close()
