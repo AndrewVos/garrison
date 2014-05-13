@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/AndrewVos/colour"
@@ -53,12 +54,19 @@ func main() {
 
 func printCommands(serverConfigurations []ServerConfiguration) {
 	fmt.Printf("Usage: %v <command>\n\n", os.Args[0])
-	fmt.Printf("Commands:\n")
+	fmt.Println("Commands:")
 	for _, serverConfiguration := range serverConfigurations {
-		fmt.Printf("%v:\n", serverConfiguration.Name)
+		var addresses []string
+		for _, s := range serverConfiguration.Servers {
+			addresses = append(addresses, s.Address)
+		}
+		fmt.Printf("%v: [%v]\n", serverConfiguration.Name, strings.Join(addresses, ", "))
+
 		for _, task := range serverConfiguration.Tasks {
 			fmt.Printf("  %v:%v\n", serverConfiguration.Name, task.Name)
+			fmt.Printf("  %v:%v:%v\n", serverConfiguration.Name, "<server_address>", task.Name)
 		}
+
 	}
 }
 
@@ -90,6 +98,17 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 				}
 				wg.Wait()
 				return
+			}
+
+			for _, server := range serverConfiguration.Servers {
+				if fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, server.Address, task.Name) == command {
+					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
+					err := executeTask(server, task, os.Stdout)
+					if err != nil {
+						FatalRedf("%v\n", err)
+					}
+					return
+				}
 			}
 		}
 	}
