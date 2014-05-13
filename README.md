@@ -6,6 +6,11 @@ of servers, mostly on EC2.
 The idea behind it is that most people just need a few bash scripts to be run on
 a lot of servers, and don't want to mess around with larger scale "Cloud" solutions.
 
+# Requirements
+
+* golang
+* ssh
+
 # Installation
 
 	go get github.com/AndrewVos/garrison
