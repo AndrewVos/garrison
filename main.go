@@ -46,6 +46,10 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
+		if os.Args[1] == "--completion-help" {
+			printCompletionCommands(serverConfigurations)
+			return
+		}
 		command := os.Args[1]
 		executeCommand(command, serverConfigurations)
 	} else {
@@ -69,6 +73,20 @@ func printCommands(serverConfigurations []ServerConfiguration) {
 			}
 		}
 
+	}
+}
+
+func printCompletionCommands(serverConfigurations []ServerConfiguration) {
+	for _, serverConfiguration := range serverConfigurations {
+		for _, task := range serverConfiguration.Tasks {
+			fmt.Printf("%v:%v\n", serverConfiguration.Name, task.Name)
+			for i, _ := range serverConfiguration.Servers {
+				fmt.Printf("%v:%v:%v\n", serverConfiguration.Name, i, task.Name)
+			}
+			for _, server := range serverConfiguration.Servers {
+				fmt.Printf("%v:%v:%v\n", serverConfiguration.Name, server.Address, task.Name)
+			}
+		}
 	}
 }
 

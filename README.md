@@ -95,3 +95,9 @@ the address or the index in the task name:
 garrison portiere:0:build
 garrison portiere:11.11.11.11:build
 ```
+
+## ZSH Completion
+
+Add the following to your ```.zprofile```.
+
+    fpath=($GOPATH/src/github.com/AndrewVos/garrison/zsh-completion $fpath)

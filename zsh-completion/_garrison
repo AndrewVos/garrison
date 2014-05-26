@@ -1,0 +1,10 @@
+#compdef garrison
+
+_garrison () {
+  for i in `garrison --completion-help`; do
+    compadd "$@" $i
+  done
+}
+
+_garrison "$@"
+compctl -K _garrison garrison
