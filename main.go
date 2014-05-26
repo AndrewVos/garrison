@@ -58,15 +58,14 @@ func printCommands(serverConfigurations []ServerConfiguration) {
 	fmt.Println("Commands:")
 	for _, serverConfiguration := range serverConfigurations {
 		var addresses []string
-		for _, s := range serverConfiguration.Servers {
-			addresses = append(addresses, s.Address)
+		for i, s := range serverConfiguration.Servers {
+			addresses = append(addresses, fmt.Sprintf("%d: %v", i, s.Address))
 		}
-		fmt.Printf("%v: [%v]\n", serverConfiguration.Name, strings.Join(addresses, ", "))
+		fmt.Printf("%v: {%v}\n", serverConfiguration.Name, strings.Join(addresses, ", "))
 
 		for _, task := range serverConfiguration.Tasks {
-			fmt.Printf("  %v:%v\n", serverConfiguration.Name, task.Name)
 			if len(serverConfiguration.Servers) > 1 {
-				fmt.Printf("  %v:%v:%v\n", serverConfiguration.Name, "<server_address>", task.Name)
+				fmt.Printf("  %v:[index|address:]%v\n", serverConfiguration.Name, task.Name)
 			}
 		}
 
@@ -80,7 +79,7 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 				var wg sync.WaitGroup
 				for _, server := range serverConfiguration.Servers {
 					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
-					if task.Parallel {
+					if task.Parallel && len(serverConfiguration.Servers) > 1 {
 						wg.Add(1)
 						out := &DelayedStdWriter{Out: os.Stdout}
 						go func(server Server, task Task, out *DelayedStdWriter) {
@@ -103,8 +102,10 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 				return
 			}
 
-			for _, server := range serverConfiguration.Servers {
-				if fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, server.Address, task.Name) == command {
+			for i, server := range serverConfiguration.Servers {
+				commandWithServer := fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, server.Address, task.Name)
+				commandWithIndex := fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, i, task.Name)
+				if command == commandWithServer || command == commandWithIndex {
 					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
 					err := executeTask(server, task, os.Stdout)
 					if err != nil {

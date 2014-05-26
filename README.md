@@ -80,3 +80,11 @@ docker stop $CONTAINER || :
 docker rm $CONTAINER || :
 docker run -d --name $CONTAINER -p 9200:9200 -p 9300:9300 -v /some/path:/var/lib/elasticsearch andrewvos/docker-elasticsearch
 ```
+
+To launch the ```build``` task just run ```garrison portiere:build```. Note that you can also single out a specific server by using
+the address or the index in the task name:
+
+```bash
+garrison portiere:0:build
+garrison portiere:11.11.11.11:build
+```
