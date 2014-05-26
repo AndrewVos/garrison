@@ -6,6 +6,10 @@ of servers, mostly on EC2.
 The idea behind it is that most people just need a few bash scripts to be run on
 a lot of servers, and don't want to mess around with larger scale "Cloud" solutions.
 
+If you're using auto-scaling or something like that, then this probably isn't for you.
+Garrison uses a push model, where you probably need a pull model. Consider just setting up
+your build scripts as "User Data"?
+
 # Requirements
 
 * golang
