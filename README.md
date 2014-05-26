@@ -29,6 +29,9 @@ You have configuration for each server, and tasks that can be run on each server
 Tasks can only be scripts at the moment. They can be run in parallel, and can have
 environment variables.
 
+When a set of parallel tasks are run, you won't see any output
+until the first tasks complete. Output from tasks will only show when each task completes.
+
 	{
 		"name": "your-task-name",
 		"script": "/some-local-file",
