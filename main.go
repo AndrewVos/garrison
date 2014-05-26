@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -17,6 +18,7 @@ import (
 type Server struct {
 	User    string `json:"user"`
 	Address string `json:"address"`
+	Port    int    `json:"port"`
 }
 
 type ServerConfiguration struct {
@@ -33,6 +35,10 @@ type Task struct {
 }
 
 func main() {
+	garrison()
+}
+
+func garrison() {
 	fileName := "garrison.json"
 	b, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -143,7 +149,11 @@ func executeTask(server Server, task Task, out io.Writer) error {
 		return errors.New(fmt.Sprintf("I couldn't read from your script %q:\n%v", task.Script, err))
 	}
 
-	cmd := exec.Command("ssh", "-T", "-o", "StrictHostKeyChecking=no", fmt.Sprintf("%v@%v", server.User, server.Address))
+	port := "22"
+	if server.Port != 0 {
+		port = strconv.Itoa(server.Port)
+	}
+	cmd := exec.Command("ssh", "-T", "-o", "StrictHostKeyChecking=no", "-p", port, fmt.Sprintf("%v@%v", server.User, server.Address))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
