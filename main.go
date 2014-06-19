@@ -74,9 +74,7 @@ func printCommands(serverConfigurations []ServerConfiguration) {
 		fmt.Printf("%v: {%v}\n", serverConfiguration.Name, strings.Join(addresses, ", "))
 
 		for _, task := range serverConfiguration.Tasks {
-			if len(serverConfiguration.Servers) > 1 {
-				fmt.Printf("  %v:[index|address:]%v\n", serverConfiguration.Name, task.Name)
-			}
+			fmt.Printf("  %v:[index|address:]%v\n", serverConfiguration.Name, task.Name)
 		}
 
 	}
