@@ -151,7 +151,7 @@ func executeTask(server Server, task Task, out io.Writer) error {
 	if server.Port != 0 {
 		port = strconv.Itoa(server.Port)
 	}
-	cmd := exec.Command("ssh", "-tt", "-o", "StrictHostKeyChecking=no", "-p", port, fmt.Sprintf("%v@%v", server.User, server.Address))
+	cmd := exec.Command("ssh", "-T", "-o", "StrictHostKeyChecking=no", "-p", port, fmt.Sprintf("%v@%v", server.User, server.Address))
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
