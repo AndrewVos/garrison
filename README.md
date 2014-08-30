@@ -53,7 +53,7 @@ This is what our ```garrison.json``` file looks like:
 ```json
 [
 	{
-		"name": "portiere",
+		"name": "elastic",
 		"servers": [
 			{ "address": "11.11.11.11", "user": "ubuntu" },
 			{ "address": "22.22.22.22", "user": "ubuntu" }
@@ -88,12 +88,12 @@ docker rm $CONTAINER || :
 docker run -d --name $CONTAINER -p 9200:9200 -p 9300:9300 -v /some/path:/var/lib/elasticsearch andrewvos/docker-elasticsearch
 ```
 
-To launch the ```build``` task just run ```garrison portiere:build```. Note that you can also single out a specific server by using
+To launch the ```build``` task just run ```garrison elastic:build```. Note that you can also single out a specific server by using
 the address or the index in the task name:
 
 ```bash
-garrison portiere:0:build
-garrison portiere:11.11.11.11:build
+garrison elastic:0:build
+garrison elastic:11.11.11.11:build
 ```
 
 ## ZSH Completion
