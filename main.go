@@ -28,10 +28,11 @@ type ServerConfiguration struct {
 }
 
 type Task struct {
-	Name        string            `json:"name"`
-	Script      string            `json:"script"`
-	Parallel    bool              `json:"parallel"`
-	Environment map[string]string `json:"environment"`
+	Name         string            `json:"name"`
+	Script       string            `json:"script"`
+	Parallel     bool              `json:"parallel"`
+	Environment  map[string]string `json:"environment"`
+	MergedOutput bool              `json:"merged_output"`
 }
 
 func main() {
@@ -103,7 +104,12 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
 					if task.Parallel && len(serverConfiguration.Servers) > 1 {
 						wg.Add(1)
-						out := &DelayedStdWriter{Out: os.Stdout}
+						var out io.Writer
+						if task.MergedOutput {
+							out = os.Stdout
+						} else {
+							out = &DelayedStdWriter{Out: os.Stdout}
+						}
 						go func(server Server, task Task, out *DelayedStdWriter) {
 							err := executeTask(server, task, out)
 							wg.Done()
