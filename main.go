@@ -16,9 +16,10 @@ import (
 )
 
 type Server struct {
-	User    string `json:"user"`
-	Address string `json:"address"`
-	Port    int    `json:"port"`
+	User         string `json:"user"`
+	Address      string `json:"address"`
+	Port         int    `json:"port"`
+	IdentityFile string `json:"identity_file"`
 }
 
 type ServerConfiguration struct {
@@ -110,10 +111,14 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 						} else {
 							out = &DelayedStdWriter{Out: os.Stdout}
 						}
-						go func(server Server, task Task, out *DelayedStdWriter) {
+						go func(server Server, task Task, out io.Writer) {
 							err := executeTask(server, task, out)
 							wg.Done()
-							out.Flush()
+
+							if delayedWriter, ok := out.(*DelayedStdWriter); ok {
+								delayedWriter.Flush()
+							}
+
 							if err != nil {
 								Redf("%v\n", err)
 							}
@@ -157,7 +162,19 @@ func executeTask(server Server, task Task, out io.Writer) error {
 	if server.Port != 0 {
 		port = strconv.Itoa(server.Port)
 	}
-	cmd := exec.Command("ssh", "-T", "-o", "StrictHostKeyChecking=no", "-p", port, fmt.Sprintf("%v@%v", server.User, server.Address))
+
+	arguments := []string{
+		"-T",
+		"-o", "StrictHostKeyChecking=no",
+		"-p", port,
+	}
+	if server.IdentityFile != "" {
+		arguments = append(arguments, "-i", server.IdentityFile)
+	}
+	arguments = append(arguments, fmt.Sprintf("%v@%v", server.User, server.Address))
+
+	cmd := exec.Command("ssh", arguments...)
+
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
