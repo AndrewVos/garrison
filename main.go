@@ -36,6 +36,54 @@ type Task struct {
 	MergedOutput bool              `json:"merged_output"`
 }
 
+func (t *Task) Execute(server Server, out io.Writer) error {
+	script, err := ioutil.ReadFile(t.Script)
+	if err != nil {
+		return errors.New(fmt.Sprintf("I couldn't read from your script %q:\n%v", t.Script, err))
+	}
+
+	port := "22"
+	if server.Port != 0 {
+		port = strconv.Itoa(server.Port)
+	}
+
+	arguments := []string{
+		"-T",
+		"-o", "StrictHostKeyChecking=no",
+		"-p", port,
+	}
+	if server.IdentityFile != "" {
+		arguments = append(arguments, "-i", server.IdentityFile)
+	}
+	arguments = append(arguments, fmt.Sprintf("%v@%v", server.User, server.Address))
+
+	cmd := exec.Command("ssh", arguments...)
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
+	}
+	for name, value := range t.Environment {
+		fmt.Fprintf(stdin, "export %v=\"%v\"\n", name, value)
+	}
+	stdin.Write(script)
+	stdin.Close()
+
+	cmd.Stdout = out
+	cmd.Stderr = out
+
+	err = cmd.Start()
+	if err != nil {
+		return errors.New(fmt.Sprintf("I couldn't launch ssh:\n%v", err))
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return errors.New(fmt.Sprintf("I had some problems running %q on %q:\n%v", t.Script, server.Address, err))
+	}
+	return nil
+}
+
 func main() {
 	garrison()
 }
@@ -112,7 +160,7 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 							out = &DelayedStdWriter{Out: os.Stdout}
 						}
 						go func(server Server, task Task, out io.Writer) {
-							err := executeTask(server, task, out)
+							err := task.Execute(server, out)
 							wg.Done()
 
 							if delayedWriter, ok := out.(*DelayedStdWriter); ok {
@@ -125,7 +173,7 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 						}(server, task, out)
 
 					} else {
-						err := executeTask(server, task, os.Stdout)
+						err := task.Execute(server, os.Stdout)
 						if err != nil {
 							FatalRedf("%v\n", err)
 						}
@@ -140,7 +188,7 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 				commandWithIndex := fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, i, task.Name)
 				if command == commandWithServer || command == commandWithIndex {
 					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
-					err := executeTask(server, task, os.Stdout)
+					err := task.Execute(server, os.Stdout)
 					if err != nil {
 						FatalRedf("%v\n", err)
 					}
@@ -150,54 +198,6 @@ func executeCommand(command string, serverConfigurations []ServerConfiguration) 
 		}
 	}
 	FatalRedf("I couldn't find the command %q\n", command)
-}
-
-func executeTask(server Server, task Task, out io.Writer) error {
-	script, err := ioutil.ReadFile(task.Script)
-	if err != nil {
-		return errors.New(fmt.Sprintf("I couldn't read from your script %q:\n%v", task.Script, err))
-	}
-
-	port := "22"
-	if server.Port != 0 {
-		port = strconv.Itoa(server.Port)
-	}
-
-	arguments := []string{
-		"-T",
-		"-o", "StrictHostKeyChecking=no",
-		"-p", port,
-	}
-	if server.IdentityFile != "" {
-		arguments = append(arguments, "-i", server.IdentityFile)
-	}
-	arguments = append(arguments, fmt.Sprintf("%v@%v", server.User, server.Address))
-
-	cmd := exec.Command("ssh", arguments...)
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return errors.New(fmt.Sprintf("I couldn't connect to stdin of ssh:\n%v", err))
-	}
-	for name, value := range task.Environment {
-		fmt.Fprintf(stdin, "export %v=\"%v\"\n", name, value)
-	}
-	stdin.Write(script)
-	stdin.Close()
-
-	cmd.Stdout = out
-	cmd.Stderr = out
-
-	err = cmd.Start()
-	if err != nil {
-		return errors.New(fmt.Sprintf("I couldn't launch ssh:\n%v", err))
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		return errors.New(fmt.Sprintf("I had some problems running %q on %q:\n%v", task.Script, server.Address, err))
-	}
-	return nil
 }
 
 func Redf(format string, v ...interface{}) {
