@@ -62,3 +62,29 @@ func TestRunsTasksOnAllServers(t *testing.T) {
 		t.Errorf("This script should have run on two servers.\n%v\n", matches)
 	}
 }
+
+func TestCrashesWhenParallelTaskFails(t *testing.T) {
+	defer cleanup()
+	container1 := NewDockerContainer()
+	container2 := NewDockerContainer()
+	defer container1.Kill()
+	defer container2.Kill()
+
+	script := createBuildScript("this-should-fail")
+	createGarrisonFile(`[{
+		"name": "server1",
+		"tasks": [{"name": "task1", "script": "` + script + `", "parallel": true}],
+		"servers": [
+		{"user": "root", "address": "127.0.0.1", "port": ` + strconv.Itoa(container1.port) + `},
+		{"user": "root", "address": "127.0.0.1", "port": ` + strconv.Itoa(container2.port) + `}
+		]
+	}]`)
+	os.Args = []string{"garrison", "server1:task1"}
+	var errors []error
+	captureStdout(func() {
+		errors = garrison()
+	})
+	if len(errors) != 2 {
+		t.Error("Expected some errors")
+	}
+}

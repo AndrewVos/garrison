@@ -36,6 +36,50 @@ type Task struct {
 	MergedOutput bool              `json:"merged_output"`
 }
 
+func (t *Task) ExecuteOnServers(servers []Server) []error {
+	var wg sync.WaitGroup
+	parallel := t.Parallel && len(servers) > 1
+
+	var allErrors []error
+	errors := make(chan error)
+	go func() {
+		for err := range errors {
+			allErrors = append(allErrors, err)
+		}
+	}()
+	for _, server := range servers {
+		fmt.Printf(colour.Blue("Executing %q on %q\n"), t.Script, server.Address)
+		if parallel {
+			wg.Add(1)
+			var out io.Writer
+			if t.MergedOutput {
+				out = os.Stdout
+			} else {
+				out = &DelayedStdWriter{Out: os.Stdout}
+			}
+			go func(server Server, task *Task, out io.Writer) {
+				err := task.Execute(server, out)
+				if delayedWriter, ok := out.(*DelayedStdWriter); ok {
+					delayedWriter.Flush()
+				}
+
+				if err != nil {
+					errors <- err
+				}
+				wg.Done()
+			}(server, t, out)
+		} else {
+			err := t.Execute(server, os.Stdout)
+			if err != nil {
+				errors <- err
+			}
+		}
+	}
+	wg.Wait()
+	close(errors)
+	return allErrors
+}
+
 func (t *Task) Execute(server Server, out io.Writer) error {
 	script, err := ioutil.ReadFile(t.Script)
 	if err != nil {
@@ -85,32 +129,41 @@ func (t *Task) Execute(server Server, out io.Writer) error {
 }
 
 func main() {
-	garrison()
+	errors := garrison()
+	if len(errors) > 0 {
+		for _, err := range errors {
+			Redf("%v\n", err)
+		}
+		os.Exit(len(errors))
+	}
 }
 
-func garrison() {
+func garrison() []error {
 	fileName := "garrison.json"
 	b, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		FatalRedf("I couldn't read your %v. Are you sure it exists?\n%v\n", fileName, err)
+		err = errors.New(fmt.Sprintf("I couldn't read your %v. Are you sure it exists?\n%v\n", fileName, err))
+		return []error{err}
 	}
 
 	var serverConfigurations []ServerConfiguration
 	err = json.Unmarshal(b, &serverConfigurations)
 	if err != nil {
-		FatalRedf("I couldn't decode your %v\n%v\n", fileName, err)
+		err = errors.New(fmt.Sprintf("I couldn't decode your %v\n%v\n", fileName, err))
+		return []error{err}
 	}
 
 	if len(os.Args) > 1 {
 		if os.Args[1] == "--completion-help" {
 			printCompletionCommands(serverConfigurations)
-			return
 		}
 		command := os.Args[1]
-		executeCommand(command, serverConfigurations)
+		return executeCommand(command, serverConfigurations)
 	} else {
 		printCommands(serverConfigurations)
 	}
+
+	return nil
 }
 
 func printCommands(serverConfigurations []ServerConfiguration) {
@@ -144,60 +197,32 @@ func printCompletionCommands(serverConfigurations []ServerConfiguration) {
 	}
 }
 
-func executeCommand(command string, serverConfigurations []ServerConfiguration) {
+func executeCommand(command string, serverConfigurations []ServerConfiguration) []error {
 	for _, serverConfiguration := range serverConfigurations {
 		for _, task := range serverConfiguration.Tasks {
+			var matchedServers []Server
 			if fmt.Sprintf("%v:%v", serverConfiguration.Name, task.Name) == command {
-				var wg sync.WaitGroup
 				for _, server := range serverConfiguration.Servers {
-					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
-					if task.Parallel && len(serverConfiguration.Servers) > 1 {
-						wg.Add(1)
-						var out io.Writer
-						if task.MergedOutput {
-							out = os.Stdout
-						} else {
-							out = &DelayedStdWriter{Out: os.Stdout}
-						}
-						go func(server Server, task Task, out io.Writer) {
-							err := task.Execute(server, out)
-							wg.Done()
-
-							if delayedWriter, ok := out.(*DelayedStdWriter); ok {
-								delayedWriter.Flush()
-							}
-
-							if err != nil {
-								Redf("%v\n", err)
-							}
-						}(server, task, out)
-
-					} else {
-						err := task.Execute(server, os.Stdout)
-						if err != nil {
-							FatalRedf("%v\n", err)
-						}
-					}
+					matchedServers = append(matchedServers, server)
 				}
-				wg.Wait()
-				return
 			}
 
 			for i, server := range serverConfiguration.Servers {
 				commandWithServer := fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, server.Address, task.Name)
 				commandWithIndex := fmt.Sprintf("%v:%v:%v", serverConfiguration.Name, i, task.Name)
 				if command == commandWithServer || command == commandWithIndex {
-					fmt.Printf(colour.Blue("Executing %q on %q\n"), task.Script, server.Address)
-					err := task.Execute(server, os.Stdout)
-					if err != nil {
-						FatalRedf("%v\n", err)
-					}
-					return
+					matchedServers = append(matchedServers, server)
+					break
 				}
+			}
+
+			if len(matchedServers) > 0 {
+				errors := task.ExecuteOnServers(matchedServers)
+				return errors
 			}
 		}
 	}
-	FatalRedf("I couldn't find the command %q\n", command)
+	return []error{errors.New(fmt.Sprintf("I couldn't find the command %q\n", command))}
 }
 
 func Redf(format string, v ...interface{}) {
