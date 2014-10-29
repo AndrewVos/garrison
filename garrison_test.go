@@ -85,6 +85,29 @@ func TestCrashesWhenParallelTaskFails(t *testing.T) {
 		errors = garrison()
 	})
 	if len(errors) != 2 {
-		t.Error("Expected some errors")
+		t.Errorf("Expected some errors, but got %v", len(errors))
+	}
+}
+
+func TestCrashesWhenTaskFails(t *testing.T) {
+	defer cleanup()
+	container := NewDockerContainer()
+	defer container.Kill()
+
+	script := createBuildScript("this-should-fail")
+	createGarrisonFile(`[{
+		"name": "server1",
+		"tasks": [{"name": "task1", "script": "` + script + `"}],
+		"servers": [
+		{"user": "root", "address": "127.0.0.1", "port": ` + strconv.Itoa(container.port) + `}
+		]
+	}]`)
+	os.Args = []string{"garrison", "server1:task1"}
+	var errors []error
+	captureStdout(func() {
+		errors = garrison()
+	})
+	if len(errors) != 1 {
+		t.Errorf("Expected some errors, but got %v", len(errors))
 	}
 }

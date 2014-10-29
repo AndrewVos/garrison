@@ -38,15 +38,12 @@ type Task struct {
 
 func (t *Task) ExecuteOnServers(servers []Server) []error {
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	parallel := t.Parallel && len(servers) > 1
 
 	var allErrors []error
-	errors := make(chan error)
-	go func() {
-		for err := range errors {
-			allErrors = append(allErrors, err)
-		}
-	}()
+
 	for _, server := range servers {
 		fmt.Printf(colour.Blue("Executing %q on %q\n"), t.Script, server.Address)
 		if parallel {
@@ -64,19 +61,23 @@ func (t *Task) ExecuteOnServers(servers []Server) []error {
 				}
 
 				if err != nil {
-					errors <- err
+					mu.Lock()
+					allErrors = append(allErrors, err)
+					mu.Unlock()
 				}
 				wg.Done()
 			}(server, t, out)
 		} else {
 			err := t.Execute(server, os.Stdout)
 			if err != nil {
-				errors <- err
+				mu.Lock()
+				allErrors = append(allErrors, err)
+				mu.Unlock()
 			}
 		}
 	}
+
 	wg.Wait()
-	close(errors)
 	return allErrors
 }
 
