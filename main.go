@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/AndrewVos/colour"
+	"gopkg.in/yaml.v2"
 )
 
 type Server struct {
@@ -139,18 +140,40 @@ func main() {
 	}
 }
 
-func garrison() []error {
-	fileName := "garrison.json"
-	b, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("I couldn't read your %v. Are you sure it exists?\n%v\n", fileName, err))
-		return []error{err}
+func readConfiguration() ([]ServerConfiguration, error) {
+	var serverConfigurations []ServerConfiguration
+	var decodeErrorFormat = "I couldn't decode your %v\n%v\n"
+
+	if _, err := os.Stat("garrison.json"); err == nil {
+		b, err := ioutil.ReadFile("garrison.json")
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(b, &serverConfigurations)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf(decodeErrorFormat, "garrison.json", err))
+		}
+		return serverConfigurations, nil
 	}
 
-	var serverConfigurations []ServerConfiguration
-	err = json.Unmarshal(b, &serverConfigurations)
+	if _, err := os.Stat("garrison.yml"); err == nil {
+		b, err := ioutil.ReadFile("garrison.yml")
+		if err != nil {
+			return nil, err
+		}
+		err = yaml.Unmarshal(b, &serverConfigurations)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf(decodeErrorFormat, "garrison.yml", err))
+		}
+		return serverConfigurations, nil
+	}
+
+	return nil, errors.New("Couldn't find a garrison.[json|yaml|] configuration file. You need one of these.")
+}
+
+func garrison() []error {
+	serverConfigurations, err := readConfiguration()
 	if err != nil {
-		err = errors.New(fmt.Sprintf("I couldn't decode your %v\n%v\n", fileName, err))
 		return []error{err}
 	}
 
