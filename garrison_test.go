@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -109,5 +110,32 @@ func TestCrashesWhenTaskFails(t *testing.T) {
 	})
 	if len(errors) != 1 {
 		t.Errorf("Expected some errors, but got %v", len(errors))
+	}
+}
+
+func TestAllowsParametersInEnvironment(t *testing.T) {
+	defer cleanup()
+	container := NewDockerContainer()
+	defer container.Kill()
+
+	script := createBuildScript("echo $MYPARAM")
+	createGarrisonFile(`[{
+		"name": "server1",
+		"tasks": [
+			{"name": "task1", "script": "` + script + `", "parameters": ["MYPARAM"]}
+		],
+		"servers": [
+		{"user": "root", "address": "127.0.0.1", "port": ` + strconv.Itoa(container.port) + `}
+		]
+	}]`)
+	os.Setenv("MYPARAM", "helloww!")
+	defer os.Setenv("MYPARAM", "")
+	os.Args = []string{"garrison", "server1:task1"}
+	output := captureStdout(func() {
+		garrison()
+	})
+
+	if strings.Contains(output, "helloww!") == false {
+		t.Errorf("Expected script to be passed MYPARAM. This was the output:\n%v\n", output)
 	}
 }

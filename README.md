@@ -42,6 +42,28 @@ until the first tasks complete. Output from tasks will only show when each task 
 		}
 	}
 
+## Task parameters
+
+Sometimes you might need to pass an environment variable through to some task and you don't want
+to have to change your configuration every time. For example, you may be telling your build script
+which git branch you want to build.
+
+You can specify parameters in your task like this:
+
+```json
+{
+  "name": "build",
+  "parameters": ["BRANCH"],
+  "script": "build"
+}
+```
+
+And then execute garrison as usual and it will use the `BRANCH` environment variable:
+
+```
+BRANCH=some-branch garrison group:task
+```
+
 # Example with Elasticsearch
 
 Lets say we want to deploy ```andrewvos/docker-elasticsearch```. We need a task

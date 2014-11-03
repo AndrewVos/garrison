@@ -34,6 +34,7 @@ type Task struct {
 	Script       string            `json:"script"`
 	Parallel     bool              `json:"parallel"`
 	Environment  map[string]string `json:"environment"`
+	Parameters   []string          `json:"parameters"`
 	MergedOutput bool              `json:"merged_output"`
 }
 
@@ -111,6 +112,14 @@ func (t *Task) Execute(server Server, out io.Writer) error {
 	}
 	for name, value := range t.Environment {
 		fmt.Fprintf(stdin, "export %v=\"%v\"\n", name, value)
+	}
+
+	for _, parameter := range t.Parameters {
+		value := os.Getenv(parameter)
+		if value == "" {
+			return errors.New(fmt.Sprintf("Couldn't find environment variable %q. This is required.", parameter))
+		}
+		fmt.Fprintf(stdin, "export %v=\"%v\"\n", parameter, value)
 	}
 	stdin.Write(script)
 	stdin.Close()
