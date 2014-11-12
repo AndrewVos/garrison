@@ -189,9 +189,10 @@ func garrison() []error {
 	if len(os.Args) > 1 {
 		if os.Args[1] == "--completion-help" {
 			printCompletionCommands(serverConfigurations)
+		} else {
+			command := os.Args[1]
+			return executeCommand(command, serverConfigurations)
 		}
-		command := os.Args[1]
-		return executeCommand(command, serverConfigurations)
 	} else {
 		printCommands(serverConfigurations)
 	}
