@@ -177,7 +177,7 @@ func readConfiguration() ([]ServerConfiguration, error) {
 		return serverConfigurations, nil
 	}
 
-	return nil, errors.New("Couldn't find a garrison.[json|yaml|] configuration file. You need one of these.")
+	return nil, errors.New("Couldn't find a garrison.[json|yml|] configuration file. You need one of these.")
 }
 
 func garrison() []error {
